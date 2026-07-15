@@ -1,21 +1,22 @@
-import { Request, Response, NextFunction } from "express";
-import { AnyZodObject } from "zod/v3";
+import { NextFunction, Request, Response } from "express";
+import { z } from "zod";
 
 const validateRequest =
-  (schema: AnyZodObject) =>
-  (req: Request, res: Response, next: NextFunction) => {
+  (schema: z.ZodType) =>
+  (req: Request, res: Response, next: NextFunction): void => {
     const result = schema.safeParse(req.body);
 
     if (!result.success) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: "Validation failed",
         errors: result.error.flatten().fieldErrors,
       });
+
+      return;
     }
 
     req.body = result.data;
-
     next();
   };
 
