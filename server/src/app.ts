@@ -1,20 +1,25 @@
-import express from "express";
-import cors from "cors";
 import cookieParser from "cookie-parser";
+import cors from "cors";
+import express from "express";
+import routes from "./routes";
+
+import globalErrorHandler from "./middleware/global-error-handler";
+
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  }),
+);
 
 app.use(express.json());
-
 app.use(cookieParser());
 
-app.get("/api/v1/health", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "LMS API is running successfully",
-  });
-});
+app.use("/api/v1", routes);
+
+app.use(globalErrorHandler);
 
 export default app;
