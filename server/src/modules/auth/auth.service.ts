@@ -1,7 +1,8 @@
 import bcrypt from "bcrypt";
 import ApiError from "../../shared/errors/api-error";
-import { RegisterInput } from "./auth.validation";
+import { LoginInput, RegisterInput } from "./auth.validation";
 import prisma from "../../config/prisma";
+import { generateAccessToken } from "../../shared/utils/jwt";
 
 const PASSWORD_SALT_ROUNDS = 12;
 
@@ -42,6 +43,64 @@ class AuthService {
 
     return user;
   }
+
+  async login(payload: LoginInput) {
+    const user = await prisma.user.findUnique({
+      where: {
+        email: payload.email,
+      },
+    });
+
+    if (!user) {
+      throw new ApiError(401, "Invalid email or password");
+    }
+
+    const passwordMatches = await bcrypt.compare(
+      payload.password,
+      user.passwordHash,
+    );
+
+    if (!passwordMatches) {
+      throw new ApiError(401, "Invalid email or password");
+    }
+
+    if (user.status !== "ACTIVE") {
+      throw new ApiError(
+        403,
+        "Your account is not active. Please contact the administrator.",
+      );
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        lastLoginAt: new Date(),
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        status: true,
+        lastLoginAt: true,
+      },
+    });
+
+    const accessToken = generateAccessToken({
+      userId: updatedUser.id,
+      role: updatedUser.role,
+    });
+
+    return {
+      user: updatedUser,
+      accessToken,
+    };
+  }
 }
+
+
 
 export default new AuthService();
